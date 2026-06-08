@@ -6,12 +6,14 @@ from app.core.database import get_db
 from app.core.security import decode_access_token
 from app.models.user import User
 
+from sqlalchemy import select
 
-oauth_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 def get_current_user(
-        token: str = Depends(oauth_scheme),
+        token: str = Depends(oauth2_scheme),
         db: Session = Depends(get_db)
 ) -> User:
     payload = decode_access_token(token)
@@ -19,14 +21,31 @@ def get_current_user(
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            status="Invalid or expire token."
+            detail="Invalid or expire token."
         )
     
-    user_id = payload.get("sub")
+    try:
+        user_id = int(payload.get("sub"))
+
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload."
+        )
 
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            status="Invalid token payload."
+            detail="Invalid token payload."
         )
 
+    query = select(User).where(User.id == user_id)
+    user = db.execute(query).scalar_one_or_none()
+
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User not found."
+        )
+    
+    return user
