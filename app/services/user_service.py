@@ -8,6 +8,11 @@ from app.schemas.user import UserEmailUpdate, UserPasswordUpdate
 
 from app.core.security import verify_password, hash_password
 
+from app.core.error_messages import (
+    USER_EMAIL_ALREADY_EXISTS,
+    PASSWORD_INCORRECT
+)
+
 
 class UserService():
     def __init__(self, db: Session, current_user: User):
@@ -64,7 +69,7 @@ class UserService():
         if user_with_same_email is not None and user_with_same_email.id != self.current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="User with the same email already exists."
+                detail=USER_EMAIL_ALREADY_EXISTS
             )
         
 
@@ -96,7 +101,7 @@ class UserService():
         if result is False:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password incorrect."
+                detail=PASSWORD_INCORRECT
             )
         
 
