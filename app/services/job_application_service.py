@@ -5,6 +5,11 @@ from fastapi import HTTPException, status
 
 from app.utils.pagination import apply_pagination, PaginationParams
 
+from app.core.error_messages import (
+    JOB_APPLICATION_NO_DATA_PROVIDED,
+    JOB_APPLICATION_NOT_FOUND,
+)
+
 from app.models.job_application import JobApplication
 from app.models.user import User
 from app.schemas.job_application import(
@@ -117,7 +122,7 @@ class JobApplicationService():
         if job_application is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Job application is not exists"
+                detail=JOB_APPLICATION_NOT_FOUND
             )
         
 
@@ -131,7 +136,7 @@ class JobApplicationService():
         if not received_data:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="No data."
+                detail=JOB_APPLICATION_NO_DATA_PROVIDED
             )
     
 
