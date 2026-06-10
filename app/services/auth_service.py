@@ -10,6 +10,12 @@ from sqlalchemy.orm import Session
 
 from fastapi import HTTPException, status
 
+from app.core.error_messages import (
+    USER_EMAIL_ALREADY_EXISTS,
+    USER_NOT_FOUND,
+    PASSWORD_INCORRECT
+)
+
 
 class AuthService:
     def __init__(self, db: Session):
@@ -58,7 +64,7 @@ class AuthService:
         if user is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="User with this email already exist."
+                detail=USER_EMAIL_ALREADY_EXISTS
             )
         
 
@@ -85,7 +91,7 @@ class AuthService:
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found."
+                detail=USER_NOT_FOUND
             )
         
 
@@ -95,7 +101,7 @@ class AuthService:
         if result is False:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect password."
+                detail=PASSWORD_INCORRECT
             )
     
 
