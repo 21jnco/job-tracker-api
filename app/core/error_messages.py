@@ -12,6 +12,8 @@ PASSWORD_INCORRECT = "Current password is incorrect."
 # Job Application
 JOB_APPLICATION_NOT_FOUND = "Job application not found."
 JOB_APPLICATION_NO_DATA_PROVIDED = "No job application data provided."
+JOB_APPLICATION_ALREADY_EXISTS = "Job application with this data already exists."
+FAILED_SAVE = "Failed to save job application."
 
 # Note
 NOTE_NOT_FOUND = "Note not found."
