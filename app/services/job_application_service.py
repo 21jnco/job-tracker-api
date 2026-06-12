@@ -1,5 +1,6 @@
 from sqlalchemy import select, Select
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from fastapi import HTTPException, status
 
@@ -8,6 +9,8 @@ from app.utils.pagination import apply_pagination, PaginationParams
 from app.core.error_messages import (
     JOB_APPLICATION_NO_DATA_PROVIDED,
     JOB_APPLICATION_NOT_FOUND,
+    INVALID_JOB_APPLICATION_DATA,
+    FAILED_SAVE
 )
 
 from app.models.job_application import JobApplication
@@ -99,9 +102,24 @@ class JobApplicationService():
 
 
     def _save_job_application(self, job_application: JobApplication) -> JobApplication:
-        self.db.add(job_application)
-        self.db.commit()
-        self.db.refresh(job_application)
+        try:
+            self.db.add(job_application)
+            self.db.commit()
+            self.db.refresh(job_application)
+
+        except IntegrityError as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=INVALID_JOB_APPLICATION_DATA
+            )
+        
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=FAILED_SAVE
+            )
 
         return job_application
     
@@ -152,8 +170,23 @@ class JobApplicationService():
     
 
     def _save_updated_job_application(self, job_application: JobApplication) -> JobApplication:
-        self.db.commit()
-        self.db.refresh(job_application)
+        try:
+            self.db.commit()
+            self.db.refresh(job_application)
+
+        except IntegrityError as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=INVALID_JOB_APPLICATION_DATA
+            )
+        
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=FAILED_SAVE
+            )
 
         return job_application
 
