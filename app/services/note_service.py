@@ -11,9 +11,7 @@ from app.utils.pagination import PaginationParams, apply_pagination
 from app.core.error_messages import (
     NOTE_NO_DATA_PROVIDED,
     NOTE_NOT_FOUND,
-    NO_DATA_PROVIDED,
-    JOB_APPLICATION_NOT_FOUND,
-    FAILED_SAVE
+    JOB_APPLICATION_NOT_FOUND
 )
 
 
@@ -47,16 +45,42 @@ class NoteService():
         return self._get_notes(query_with_pagination)
     
 
-    def get_note_by_id(self):
-        pass
+    def get_note_by_id(self, job_application_id: int, note_id: int) -> Note:
+        job_application = self._get_job_application(job_application_id)
+
+        self._ensure_job_application_is_exists(job_application)
+
+        note = self._get_note(note_id, job_application.id)
+
+        self._ensure_note_is_exists(note)
+
+        return note
 
 
-    def update_note(self):
-        pass
+    def update_note(self, job_application_id: int, note_id: int, update_data: NoteUpdate) -> Note:
+        job_application = self._get_job_application(job_application_id)
+
+        self._ensure_job_application_is_exists(job_application)
+
+        note = self._get_note(note_id, job_application.id)
+
+        self._ensure_note_is_exists(note)
+
+        updated_note = self._apply_update_data(note, update_data)
+
+        return self._commit_updated_note(updated_note)
 
 
-    def delete_note(self):
-        pass
+    def delete_note(self, job_application_id: int, note_id: int) -> None:
+        job_application = self._get_job_application(job_application_id)
+
+        self._ensure_job_application_is_exists(job_application)
+
+        note = self._get_note(note_id, job_application.id)
+
+        self._ensure_note_is_exists(note)
+
+        self._delete_note(note)
 
 
     def _get_job_application(self, job_application_id: int) -> JobApplication | None:
@@ -112,6 +136,7 @@ class NoteService():
 
         return query
 
+
     def _apply_pagination_params(self, query: Select, pagination_params: PaginationParams) -> Select:
         query = apply_pagination(query, pagination_params)
 
@@ -122,3 +147,39 @@ class NoteService():
         notes = self.db.execute(query).scalars().all()
 
         return notes
+
+
+    def _get_note(self, note_id: int, job_application_id: int) -> Note | None:
+        query = (
+            select(Note)
+            .where(Note.id == note_id, Note.job_application_id == job_application_id)
+        )
+        note = self.db.execute(query).scalar_one_or_none()
+
+        return note
+    
+
+    def _ensure_note_is_exists(self, note: Note | None) -> None:
+        if note is None: 
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=NOTE_NOT_FOUND
+            )
+        
+    
+    def _apply_update_data(self, note: Note, update_data: NoteUpdate) -> Note:
+        note.content = update_data.content
+
+        return note
+    
+
+    def _commit_updated_note(self, note: Note) -> Note:
+        self.db.commit()
+        self.db.refresh(note)
+
+        return note
+    
+
+    def _delete_note(self, note: Note) -> None:
+        self.db.delete(note)
+        self.db.commit()
