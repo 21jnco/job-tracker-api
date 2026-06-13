@@ -1,14 +1,26 @@
-from pydantic import BaseModel
+from typing import Annotated
+
+from pydantic import BaseModel, StringConstraints
 
 from datetime import datetime
 
 
+NoteContent = Annotated[
+    str,
+    StringConstraints(
+        strip_whitespace=True,
+        min_length=1,
+        max_length=1000
+    )
+]
+
+
 class NoteCreate(BaseModel):
-    content: str | None = None
+    content: NoteContent
 
 
 class NoteUpdate(BaseModel):
-    content: str | None = None
+    content: NoteContent
 
 
 class NoteResponse(BaseModel):
