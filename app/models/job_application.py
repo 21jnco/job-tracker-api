@@ -33,7 +33,7 @@ class JobApplication(Base):
 
     status: Mapped[str] = mapped_column(
         String(255),
-        default="Applied",
+        default="applied",
         nullable=False
     )
 
