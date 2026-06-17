@@ -36,13 +36,13 @@ class AuthService:
         return saved_user
     
     
-    def login(self, user_data: LoginRequest) -> str:
-        user = self._get_user_by_email(user_data.email)    
+    def login(self, email: str, password: str) -> str:
+        user = self._get_user_by_email(email)    
 
         self._ensure_user_exists(user)
 
         self._ensure_password_is_correct(
-            user_data.password,
+            password,
             user.hashed_password
         )
 
@@ -53,8 +53,8 @@ class AuthService:
 
     # --- REGISTER PRIVATE FUNC ---
 
-    def _get_user_by_email(self, data: str) -> User | None:
-        query = select(User).where(User.email == data)
+    def _get_user_by_email(self, email: str) -> User | None:
+        query = select(User).where(User.email == email)
         user = self.db.execute(query).scalar_one_or_none()
 
         return user
