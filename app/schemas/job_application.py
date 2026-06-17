@@ -12,6 +12,7 @@ class JobApplicationStatus(str, Enum):
     REJECTED = "rejected"
     OFFER = "offer"
     ACCEPTED = "accepted"
+    DELETED = "deleted"
 
 class JobApplicationStatusUpdate(BaseModel):
     status: JobApplicationStatus
