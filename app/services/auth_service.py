@@ -1,5 +1,5 @@
 from app.schemas.auth import LoginRequest
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreate, UserPasswordUpdate, UserEmailUpdate
 
 from app.core.security import hash_password, verify_password, create_access_token
 
@@ -13,7 +13,8 @@ from fastapi import HTTPException, status
 from app.core.error_messages import (
     USER_EMAIL_ALREADY_EXISTS,
     USER_NOT_FOUND,
-    PASSWORD_INCORRECT
+    PASSWORD_INCORRECT,
+    RECOVERY_USER
 )
 
 
@@ -25,7 +26,7 @@ class AuthService:
     def register(self, user_data: UserCreate) -> User:
         query_user = self._get_user_by_email(user_data.email)
 
-        self._ensure_email_not_taken(query_user)
+        self._check_email_availability(query_user)
 
         user_hash_password = hash_password(user_data.password)
 
@@ -37,7 +38,7 @@ class AuthService:
     
     
     def login(self, email: str, password: str) -> str:
-        user = self._get_user_by_email(email)    
+        user = self._get_existing_user_by_email(email)    
 
         self._ensure_user_exists(user)
 
@@ -49,23 +50,33 @@ class AuthService:
         token = self._create_token(user.id)
 
         return token
+    
 
+    def recovery_user(self, email: str, password: str) -> User:
+        deleted_user = self._get_deleted_user_by_email(email)
 
-    # --- REGISTER PRIVATE FUNC ---
+        self._ensure_user_exists(deleted_user)
+
+        self._ensure_password_is_correct(
+            password,
+            deleted_user.hashed_password
+        )
+
+        return self._switch_status(deleted_user)
+
 
     def _get_user_by_email(self, email: str) -> User | None:
         query = select(User).where(User.email == email)
         user = self.db.execute(query).scalar_one_or_none()
 
         return user
-    
 
-    def _ensure_email_not_taken(self, user: User | None) -> None:
-        if user is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=USER_EMAIL_ALREADY_EXISTS
-            )
+
+    def _get_existing_user_by_email(self, email: str) -> User | None:
+        query = select(User).where(User.email == email, User.deleted_at.is_(None))
+        user = self.db.execute(query).scalar_one_or_none()
+
+        return user
         
 
     def _create_user(self, hashed_password: str, data: UserCreate) -> User:
@@ -84,8 +95,6 @@ class AuthService:
 
         return user
     
-
-    # --- LOGIN PRIVATE FUNC ---
 
     def _ensure_user_exists(self, user: User | None) -> None:
         if user is None:
@@ -109,3 +118,36 @@ class AuthService:
         token = create_access_token({"sub": str(user_id)})
 
         return token
+    
+
+    def _get_deleted_user_by_email(self, email: str) -> User:
+        query = select(User).where(User.email == email, User.deleted_at.is_not(None))
+        deleted_user = self.db.execute(query).scalar_one_or_none()
+
+        return deleted_user
+    
+
+    def _switch_status(self, deleted_user: User) -> User:
+        deleted_user.deleted_at = None
+
+        self.db.commit()
+        self.db.refresh(deleted_user)
+
+        return deleted_user
+    
+
+    def _check_email_availability(self, user: User | None) -> None:
+        if user is None:
+            return
+        
+        if user.deleted_at is not None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=RECOVERY_USER
+            )
+        
+        if user is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=USER_EMAIL_ALREADY_EXISTS
+            )
