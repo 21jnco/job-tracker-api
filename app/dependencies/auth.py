@@ -45,7 +45,7 @@ def get_current_user(
             detail=INVALID_TOKEN_PAYLOAD
         )
 
-    query = select(User).where(User.id == user_id)
+    query = select(User).where(User.id == user_id, User.deleted_at.is_(None))
     user = db.execute(query).scalar_one_or_none()
 
     if user is None:
