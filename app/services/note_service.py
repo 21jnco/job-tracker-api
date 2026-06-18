@@ -94,7 +94,7 @@ class NoteService():
 
         self._ensure_note_is_exists(deleted_note)
 
-        return self.recovery_note(deleted_note)
+        return self._recovery_note(deleted_note)
 
 
     def _get_job_application(self, job_application_id: int) -> JobApplication | None:
@@ -220,7 +220,7 @@ class NoteService():
         self.db.commit()
 
 
-    def recovery_note(self, deleted_note: Note) -> Note:
+    def _recovery_note(self, deleted_note: Note) -> Note:
         deleted_note.deleted_at = None
 
         self.db.commit()
