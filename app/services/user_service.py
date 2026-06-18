@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 
 from fastapi import HTTPException, status
 
+from datetime import datetime, timezone
+
 from app.models.user import User
 from app.schemas.user import UserEmailUpdate, UserPasswordUpdate
 
@@ -87,7 +89,8 @@ class UserService():
     
 
     def _delete_user_account(self, user: User) -> None:
-        self.db.delete(user)
+        user.deleted_at = datetime.now(timezone.utc)
+
         self.db.commit()
 
 
