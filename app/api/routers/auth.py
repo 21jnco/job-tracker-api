@@ -28,3 +28,10 @@ def login_user(data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
     token = auth_service.login(data.username, data.password)
 
     return TokenResponse(access_token=token)
+
+
+@router.patch("/recovery", response_model=UserResponse)
+def recovery(data: LoginRequest, db: Session = Depends(get_db)):
+    service = AuthService(db)
+
+    return service.recovery_user(data.email, data.password)
