@@ -3,6 +3,8 @@ from sqlalchemy.orm import Session
 
 from fastapi import HTTPException, status
 
+from datetime import datetime, timezone
+
 from app.schemas.note import NoteCreate, NoteUpdate
 from app.models.note import Note
 from app.models.user import User
@@ -83,10 +85,23 @@ class NoteService():
         self._delete_note(note)
 
 
+    def recovery_note_by_id(self, job_application_id: int, note_id: int) -> Note:
+        job_application = self._get_job_application(job_application_id)
+
+        self._ensure_job_application_is_exists(job_application)
+
+        deleted_note = self._get_deleted_note(note_id, job_application.id)
+
+        self._ensure_note_is_exists(deleted_note)
+
+        return self.recovery_note(deleted_note)
+
+
     def _get_job_application(self, job_application_id: int) -> JobApplication | None:
         query = select(JobApplication).where(
             JobApplication.id == job_application_id,
-            JobApplication.user_id == self.current_user.id
+            JobApplication.user_id == self.current_user.id,
+            JobApplication.deleted_at.is_(None)
         )
 
         job_application = self.db.execute(query).scalar_one_or_none()
@@ -130,7 +145,7 @@ class NoteService():
     def _select_notes(self, job_application_id: int) -> Select:
         query = (
             select(Note)
-            .where(Note.job_application_id == job_application_id)
+            .where(Note.job_application_id == job_application_id, Note.deleted_at.is_(None))
             .order_by(Note.id.desc())
         )
 
@@ -152,11 +167,30 @@ class NoteService():
     def _get_note(self, note_id: int, job_application_id: int) -> Note | None:
         query = (
             select(Note)
-            .where(Note.id == note_id, Note.job_application_id == job_application_id)
+            .where(
+                Note.id == note_id,
+                Note.job_application_id == job_application_id,
+                Note.deleted_at.is_(None)
+            )
         )
         note = self.db.execute(query).scalar_one_or_none()
 
         return note
+    
+
+    def _get_deleted_note(self, note_id: int, job_application_id: int) -> Note | None:
+        query = (
+            select(Note)
+            .where(
+                Note.id == note_id,
+                Note.job_application_id == job_application_id,
+                Note.deleted_at.is_not(None),
+                Note.delete_with_parent.is_(False)
+            )
+        )
+        deleted_note = self.db.execute(query).scalar_one_or_none()
+
+        return deleted_note
     
 
     def _ensure_note_is_exists(self, note: Note | None) -> None:
@@ -181,5 +215,15 @@ class NoteService():
     
 
     def _delete_note(self, note: Note) -> None:
-        self.db.delete(note)
+        note.deleted_at = datetime.now(timezone.utc)
+
         self.db.commit()
+
+
+    def recovery_note(self, deleted_note: Note) -> Note:
+        deleted_note.deleted_at = None
+
+        self.db.commit()
+        self.db.refresh(deleted_note)
+
+        return deleted_note
