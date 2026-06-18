@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 from app.core.database import Base
 
-from sqlalchemy import Integer, Text, DateTime, ForeignKey
+from sqlalchemy import Integer, Text, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 class Note(Base):
@@ -21,6 +21,12 @@ class Note(Base):
     content: Mapped[str | None] = mapped_column(
         Text,
         nullable=True
+    )
+
+    delete_with_parent: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+        nullable=False
     )
 
     created_at: Mapped[datetime] = mapped_column(
