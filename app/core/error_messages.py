@@ -8,6 +8,7 @@ FORBIDDEN = "Forbidden."
 USER_NOT_FOUND = "User not found."
 USER_EMAIL_ALREADY_EXISTS = "User with this email already exists."
 PASSWORD_INCORRECT = "Current password is incorrect."
+RECOVERY_USER = "This email address belongs to a deleted account, please recover it."
 
 # Job Application
 JOB_APPLICATION_NOT_FOUND = "Job application not found."
