@@ -6,6 +6,8 @@ from fastapi import HTTPException, status
 
 from app.utils.pagination import apply_pagination, PaginationParams
 
+from datetime import datetime, timezone
+
 from app.core.error_messages import (
     JOB_APPLICATION_NO_DATA_PROVIDED,
     JOB_APPLICATION_NOT_FOUND,
@@ -14,6 +16,7 @@ from app.core.error_messages import (
 )
 
 from app.models.job_application import JobApplication
+from app.models.note import Note
 from app.models.user import User
 from app.schemas.job_application import(
     JobApplicationCreate,
@@ -85,9 +88,18 @@ class JobApplicationService():
 
         self._ensure_job_application_is_exists(job_application)
 
-        self._delete_job_application(job_application)
+        notes = self._get_all_notes(job_application.id)
 
-    # CREATE JOB APPLICATION PRIVATE FUNC
+        self._delete_job_application(job_application, notes)
+
+    
+    def recovery_job_application_by_id(self, job_application_id: int) -> JobApplication:
+        job_application = self._get_deleted_job_application(job_application_id)
+
+        self._ensure_job_application_is_exists(job_application)
+
+        return self._switch_status(job_application)
+
 
     def _create_orm_object(self, data: JobApplicationCreate) -> JobApplication:
         job_application = JobApplication(
@@ -124,12 +136,11 @@ class JobApplicationService():
         return job_application
     
 
-    # JOB APPLICATION UPDATE PRIVATE FUNC
-
     def _get_job_application_by_id(self, job_application_id: int) -> JobApplication | None:
         query = select(JobApplication).where(
             JobApplication.id == job_application_id,
-            JobApplication.user_id == self.current_user.id
+            JobApplication.user_id == self.current_user.id,
+            JobApplication.deleted_at.is_(None)
         )
         job_application = self.db.execute(query).scalar_one_or_none()
 
@@ -191,12 +202,10 @@ class JobApplicationService():
         return job_application
 
 
-    # GET ALL JOB APPLICATION PRIVATE FUNC
-
     def _build_current_user_job_applications_query(self) -> Select:
         query = (
             select(JobApplication)
-            .where(JobApplication.user_id == self.current_user.id)
+            .where(JobApplication.user_id == self.current_user.id, JobApplication.deleted_at.is_(None))
             .order_by(JobApplication.id.desc())
         )
 
@@ -219,8 +228,6 @@ class JobApplicationService():
         return job_applications
 
 
-    # UPDATE JOB APPLICATION STATUS PRICATE FUNC
-
     def _add_updated_status(
             self,
             job_application: JobApplication,
@@ -230,9 +237,53 @@ class JobApplicationService():
 
         return job_application
     
-    
-    # DELETE JOB APPLICATION PRIVATE FUNC
 
-    def _delete_job_application(self, job_application: JobApplication) -> None:
-        self.db.delete(job_application)
+    def _get_all_notes(self, job_application_id: int) -> list[Note]:
+        query = select(Note).where(Note.job_application_id == job_application_id, Note.deleted_at.is_(None))
+        notes = self.db.execute(query).scalars().all()
+
+        return notes
+    
+
+    def _delete_job_application(self, job_application: JobApplication, notes: list[Note]) -> None:
+        now = datetime.now(timezone.utc)
+
+        job_application.deleted_at = now
+
+        for note in notes:
+            note.deleted_at = now
+            note.delete_with_parent = True
+
         self.db.commit()
+
+
+    def _get_deleted_job_application(self, job_application_id: int) -> JobApplication | None:
+        query = (
+            select(JobApplication)
+            .where(
+                JobApplication.id == job_application_id,
+                JobApplication.user_id == self.current_user.id,
+                JobApplication.deleted_at.is_not(None)
+            )
+            
+        )
+        job_application = self.db.execute(query).scalar_one_or_none()
+
+        return job_application
+
+
+    def _switch_status(self, job_application: JobApplication) -> JobApplication:
+        job_application.deleted_at = None
+
+        query = select(Note).where(Note.job_application_id == job_application.id, Note.delete_with_parent.is_(True))
+        notes = self.db.execute(query).scalars().all()
+        
+
+        for note in notes:
+            note.deleted_at = None
+            note.delete_with_parent = False
+
+        self.db.commit()
+        self.db.refresh(job_application)
+
+        return job_application
