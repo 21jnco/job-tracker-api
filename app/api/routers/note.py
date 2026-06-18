@@ -75,3 +75,15 @@ def delete(
 ):
     service = NoteService(db, current_user)
     service.delete_note(job_application_id, note_id)
+
+
+@router.patch("/{note_id}/recovery", response_model=NoteResponse)
+def recovery(
+    job_application_id: int,
+    note_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    service = NoteService(db, current_user)
+
+    return service.recovery_note_by_id(job_application_id, note_id)
