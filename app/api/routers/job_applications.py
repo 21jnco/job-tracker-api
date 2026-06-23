@@ -85,7 +85,7 @@ def delete(
     current_user: User = Depends(get_current_user)
 ):
     service = JobApplicationService(db, current_user)
-    service._delete_job_application(job_application_id)
+    service.delete_job_application_by_id(job_application_id)
     
 
 @router.patch("/{job_application_id}/recovery", response_model=JobApplicationResponse)
